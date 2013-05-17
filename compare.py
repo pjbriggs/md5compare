@@ -47,6 +47,8 @@ def compare(dir1,dir2,output):
     # First get set of contents of dir1 and dir2
     dir1_set = set(list_files(dir1))
     dir2_set = set(list_files(dir2))
+    # Initialise list of files with non-matching checksums
+    different = []
     # Get list of common files (and of those which only appear in once
     # in one of the dirs)
     only_in_1 = list(dir1_set.difference(dir2_set))
@@ -56,18 +58,25 @@ def compare(dir1,dir2,output):
     common = list(dir1_set.intersection(dir2_set))
     common.sort()
     # Report
-    print "Files only in %s:" % dir1
+    print "Files only in %s (%d)" % (dir1,len(only_in_1))
     for f in only_in_1:
         print "\t%s" % str(f)
-    print "Files only in %s:" % dir2
+    print "Files only in %s (%d)" % (dir2,len(only_in_2))
     for f in only_in_2:
         print "\t%s" % str(f)
-    # Files in common
     print "Common files (%d)" % len(common)
     for f in common:
-        print "\t%s\t%s" % (str(f),str(check_file(dir1,dir2,f)))
+        if check_file(dir1,dir2,f):
+            status = "OK"
+        else:
+            status = "FAILED"
+            different.append(f)
+        print "\t%s\t%s" % (status,f)
 
 def check_file(dir1,dir2,filen):
+    """Compare the checksums for a file in two directories
+
+    """
     chksum1 = Md5sum.md5sum(os.path.join(dir1,filen))
     chksum2 = Md5sum.md5sum(os.path.join(dir2,filen))
     return chksum1 == chksum2
@@ -82,7 +91,18 @@ def list_files(dirn):
         for f in d[2]:
             # Hacky way to get path of each file relative to dirn
             files.append(os.path.join(str(d[0])[len(dirn):].lstrip(os.sep),f))
+    files.sort()
     return files
+
+def make_checksum_file(dirn,checksum_file):
+    """Generate a file with the checksums for a specified directory
+
+    """
+    fp = open(checksum_file,'w')
+    for f in list_files(dirn):
+        checksum = Md5sum.md5sum(os.path.join(dirn,f))
+        fp.write("%s  %s\n" % (checksum,f))
+    fp.close()
 
 #######################################################################
 # Main program
