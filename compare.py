@@ -34,52 +34,83 @@ import Md5sum
 # Classes
 #######################################################################
 
-# none defined
+class Compare:
+    """Class to compare contents of two directories
+    
+    """
+
+    def __init__(self,from_dir,to_dir):
+        """Create a new Compare object
+
+        Arguments:
+          from_dir: path to "source" directory
+          to_dir: path to "target" directory
+
+        """
+        # Store info about source ("from") dir
+        self._from_dir = from_dir
+        self._from_set = set(list_files(from_dir))
+        # Store info about target ("to") dir
+        self._to_dir = to_dir
+        self._to_set = set(list_files(to_dir))
+        # Lists created from subsets
+        self._common = list(self._from_set.intersection(self._to_set))
+        self._only_in_from = list(self._from_set.difference(self._to_set))
+        self._only_in_to   = list(self._to_set.difference(self._from_set))
+        # Sort the lists
+        self._common.sort()
+        self._only_in_from.sort()
+        self._only_in_to.sort()
+
+    def report(self,output_file=None,fp=sys.stdout):
+        """Write a report of the comparison
+
+        Report will be written to the specified file name (if provided),
+        or else to the specified file handle (must have been opened for
+        writing).
+
+        If neither is supplied then the report is written to stdout.
+
+        """
+        if output_file is not None:
+            self.report(fp=open(output_file,'w'))
+            return
+        # Preamble
+        title_line = "Comparing contents of %s and %s" % (self._from_dir,
+                                                          self._to_dir)
+        fp.write("%s\n%s\n" % (title_line,"="*len(title_line)))
+        # Files only in one or the other directory
+        fp.write("\nFiles only in %s (%d)\n" % (self._from_dir,len(self._only_in_from)))
+        for f in self._only_in_from:
+            fp.write("\t%s\n" % str(f))
+        fp.write("\nFiles only in %s (%d)\n" % (self._to_dir,len(self._only_in_to)))
+        for f in self._only_in_to:
+            fp.write("\t%s\n" % str(f))
+        # Compare checksums for files in both directories
+        fp.write("\nCommon files (%d)\n" % len(self._common))
+        for f in self._common:
+            if self.check_md5(f):
+                status = "OK"
+            else:
+                status = "FAILED"
+            fp.write("\t%s\t%s\n" % (status,f))
+
+    def check_md5(self,filen):
+        """Compare MD5 sums of two copies of a file
+
+        Calculates and compares the MD5 sums of each copy of the
+        specified file in the source and target directories.
+
+        Returns True if the MD5 sums match, False if they differ.
+
+        """
+        chksum1 = Md5sum.md5sum(os.path.join(self._from_dir,filen))
+        chksum2 = Md5sum.md5sum(os.path.join(self._to_dir,filen))
+        return chksum1 == chksum2
 
 #######################################################################
 # Functions
 #######################################################################
-
-def compare(dir1,dir2,output):
-    """Compare two directories using MD5 sums
-
-    """
-    # First get set of contents of dir1 and dir2
-    dir1_set = set(list_files(dir1))
-    dir2_set = set(list_files(dir2))
-    # Initialise list of files with non-matching checksums
-    different = []
-    # Get list of common files (and of those which only appear in once
-    # in one of the dirs)
-    only_in_1 = list(dir1_set.difference(dir2_set))
-    only_in_1.sort()
-    only_in_2 = list(dir2_set.difference(dir1_set))
-    only_in_2.sort()
-    common = list(dir1_set.intersection(dir2_set))
-    common.sort()
-    # Report
-    print "Files only in %s (%d)" % (dir1,len(only_in_1))
-    for f in only_in_1:
-        print "\t%s" % str(f)
-    print "Files only in %s (%d)" % (dir2,len(only_in_2))
-    for f in only_in_2:
-        print "\t%s" % str(f)
-    print "Common files (%d)" % len(common)
-    for f in common:
-        if check_file(dir1,dir2,f):
-            status = "OK"
-        else:
-            status = "FAILED"
-            different.append(f)
-        print "\t%s\t%s" % (status,f)
-
-def check_file(dir1,dir2,filen):
-    """Compare the checksums for a file in two directories
-
-    """
-    chksum1 = Md5sum.md5sum(os.path.join(dir1,filen))
-    chksum2 = Md5sum.md5sum(os.path.join(dir2,filen))
-    return chksum1 == chksum2
 
 def list_files(dirn):
     """Return a list of all files under a directory
@@ -93,16 +124,6 @@ def list_files(dirn):
             files.append(os.path.join(str(d[0])[len(dirn):].lstrip(os.sep),f))
     files.sort()
     return files
-
-def make_checksum_file(dirn,checksum_file):
-    """Generate a file with the checksums for a specified directory
-
-    """
-    fp = open(checksum_file,'w')
-    for f in list_files(dirn):
-        checksum = Md5sum.md5sum(os.path.join(dirn,f))
-        fp.write("%s  %s\n" % (checksum,f))
-    fp.close()
 
 #######################################################################
 # Main program
@@ -135,5 +156,4 @@ if __name__ == "__main__":
     logging.basicConfig(format='%(message)s')
     
     # Invoke the comparison
-    compare(from_dir,to_dir,output_file)
-    
+    comparison = Compare(from_dir,to_dir).report(output_file)    
