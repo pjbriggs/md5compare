@@ -161,7 +161,7 @@ class Compare:
 #######################################################################
 
 if __name__ == "__main__":
-    usage = "%prog FROM_DIR TO_DIR OUTPUT_FILE"
+    usage = "%prog FROM_DIR TO_DIR [ OUTPUT_FILE ]"
     p = optparse.OptionParser(usage=usage,
                               version="%prog "+__version__,
                               description=
@@ -173,15 +173,18 @@ if __name__ == "__main__":
 
     # Process command line
     options,arguments = p.parse_args()
-    if len(arguments) != 3:
-        p.error("Needs 3 arguments: FROM_DIR, TO_DIR and OUTPUT_FILE")
+    if len(arguments) < 2 or len(arguments) > 3:
+        p.error("Takes either 2 or 3 arguments: FROM_DIR, TO_DIR and optional OUTPUT_FILE")
     from_dir = arguments[0]
     if not os.path.isdir(from_dir):
         p.error("%s: directory not found" % from_dir)
     to_dir = arguments[1]
     if not os.path.isdir(from_dir):
         p.error("%s: directory not found" % to_dir)
-    output_file = arguments[2]
+    if len(arguments) == 3:
+        output_file = arguments[2]
+    else:
+        output_file = None
 
     # Set up logging output
     logging.basicConfig(format='%(message)s')
