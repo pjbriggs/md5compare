@@ -49,10 +49,10 @@ class Compare:
         """
         # Store info about source ("from") dir
         self._from_dir = from_dir
-        self._from_set = set(list_files(from_dir))
+        self._from_set = set(self.list_files(from_dir))
         # Store info about target ("to") dir
         self._to_dir = to_dir
-        self._to_set = set(list_files(to_dir))
+        self._to_set = set(self.list_files(to_dir))
         # Lists created from subsets
         self._common = list(self._from_set.intersection(self._to_set))
         self._only_in_from = list(self._from_set.difference(self._to_set))
@@ -61,6 +61,23 @@ class Compare:
         self._common.sort()
         self._only_in_from.sort()
         self._only_in_to.sort()
+        # Do checksum comparison
+        self.go_compare()
+
+    def go_compare(self):
+        """Do the comparison
+
+        """
+        failed_md5 = []
+        unreadable = []
+        for f in self._common:
+            try:
+                if not self.check_md5(f):
+                    failed_md5.append(f)
+            except IOError:
+                unreadable.append(f)
+        self._failed_md5 = failed_md5
+        self._unreadable = unreadable
 
     def report(self,output_file=None,fp=sys.stdout):
         """Write a report of the comparison
@@ -72,6 +89,7 @@ class Compare:
         If neither is supplied then the report is written to stdout.
 
         """
+        # Deal with output file
         if output_file is not None:
             self.report(fp=open(output_file,'w'))
             return
@@ -79,6 +97,16 @@ class Compare:
         title_line = "Comparing contents of %s and %s" % (self._from_dir,
                                                           self._to_dir)
         fp.write("%s\n%s\n" % (title_line,"="*len(title_line)))
+        # Summary
+        fp.write("\nSummary\n%s\n" % ("-"*len("Summary")))
+        fp.write("\t%d files only found in %s\n" % (len(self._only_in_from),self._from_dir))
+        fp.write("\t%d files only found in %s\n" % (len(self._only_in_to),self._to_dir))
+        fp.write("\t%d files in both\n" % len(self._common))
+        fp.write("\t\t%d files OK\n" % (len(self._common) -
+                                        len(self._failed_md5) -
+                                        len(self._unreadable)))
+        fp.write("\t\t%d files FAILED\n" % len(self._failed_md5))
+        fp.write("\t\t%d files UNREADABLE\n" % len(self._unreadable))
         # Files only in one or the other directory
         fp.write("\nFiles only in %s (%d)\n" % (self._from_dir,len(self._only_in_from)))
         for f in self._only_in_from:
@@ -89,11 +117,25 @@ class Compare:
         # Compare checksums for files in both directories
         fp.write("\nCommon files (%d)\n" % len(self._common))
         for f in self._common:
-            if self.check_md5(f):
-                status = "OK"
-            else:
+            status = "OK"
+            if f in self._failed_md5:
                 status = "FAILED"
+            elif f in self._unreadable:
+                status = "UNREADABLE"
             fp.write("\t%s\t%s\n" % (status,f))
+
+    def list_files(self,dirn):
+        """Return a list of all files under a directory
+        
+        """
+        files = []
+        for d in os.walk(dirn):
+            # os.walk returns tuple (dir,(file1,file2,...))
+            for f in d[2]:
+                # Hacky way to get path of each file relative to dirn
+                files.append(os.path.join(str(d[0])[len(dirn):].lstrip(os.sep),f))
+        files.sort()
+        return files
 
     def check_md5(self,filen):
         """Compare MD5 sums of two copies of a file
@@ -112,18 +154,7 @@ class Compare:
 # Functions
 #######################################################################
 
-def list_files(dirn):
-    """Return a list of all files under a directory
-
-    """
-    files = []
-    for d in os.walk(dirn):
-        # os.walk returns tuple (dir,(file1,file2,...))
-        for f in d[2]:
-            # Hacky way to get path of each file relative to dirn
-            files.append(os.path.join(str(d[0])[len(dirn):].lstrip(os.sep),f))
-    files.sort()
-    return files
+# None defined
 
 #######################################################################
 # Main program
@@ -156,4 +187,4 @@ if __name__ == "__main__":
     logging.basicConfig(format='%(message)s')
     
     # Invoke the comparison
-    comparison = Compare(from_dir,to_dir).report(output_file)    
+    comparison = Compare(from_dir,to_dir).report(output_file)
