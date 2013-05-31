@@ -39,43 +39,71 @@ class Compare:
     
     """
 
-    def __init__(self,from_dir,to_dir):
+    def __init__(self,from_dir,to_dir,
+                 report_progress=False,progress_callback=None):
         """Create a new Compare object
 
         Arguments:
           from_dir: path to "source" directory
           to_dir: path to "target" directory
+          report_progress: if True then invoke progress_callback
+            with progress messages, or write to stdout (if callback
+            is not defined)
+          progress: (optional) callback function that will be
+            invoked to report progress
 
         """
-        # Store info about source ("from") dir
+        # Store info about source ("from") and target ("to") dirs
         self._from_dir = from_dir
-        self._from_set = set(self.list_files(from_dir))
-        # Store info about target ("to") dir
         self._to_dir = to_dir
-        self._to_set = set(self.list_files(to_dir))
+        # Store progress options and callback function
+        self._report_progress_flag = report_progress
+        self._progress_callback = progress_callback
+        # Setup
+        self.setup()
+        # Do checksum comparison
+        self.go_compare()
+
+    def setup(self):
+        """Collect lists of files for comparison
+
+        """
+        # Create sets of files in "from" and "to" directories
+        self._report_progress("Collecting files for %s" % self._from_dir)
+        self._from_set = set(self._list_files(self._from_dir))
+        self._report_progress("Collecting files for %s" % self._to_dir)
+        self._to_set = set(self._list_files(self._to_dir))
         # Lists created from subsets
+        self._report_progress("Sorting files into sets")
         self._common = list(self._from_set.intersection(self._to_set))
         self._only_in_from = list(self._from_set.difference(self._to_set))
         self._only_in_to   = list(self._to_set.difference(self._from_set))
         # Sort the lists
         self._common.sort()
         self._only_in_from.sort()
-        self._only_in_to.sort()
-        # Do checksum comparison
-        self.go_compare()
+        self._only_in_to.sort()        
 
     def go_compare(self):
         """Do the comparison
 
         """
+        nfiles = len(self._common)
+        n_mod = int(float(nfiles)/100)
+        if n_mod == 0: n_mod = 1
+        n = 0
         failed_md5 = []
         unreadable = []
         for f in self._common:
             try:
-                if not self.check_md5(f):
+                if not self._check_md5(f):
                     failed_md5.append(f)
             except IOError:
                 unreadable.append(f)
+            n += 1
+            if n%n_mod == 0:
+                self._report_progress("Done %d/%d (%.1f%%)" % (n,
+                                                              nfiles,
+                                                              float(n)/float(nfiles)*100.0))
         self._failed_md5 = failed_md5
         self._unreadable = unreadable
 
@@ -124,7 +152,14 @@ class Compare:
                 status = "UNREADABLE"
             fp.write("\t%s\t%s\n" % (status,f))
 
-    def list_files(self,dirn):
+    def _report_progress(self,message):
+        if self._report_progress_flag:
+            if self._progress_callback is not None:
+                self._progress_callback(message)
+            else:
+                print str(message)
+
+    def _list_files(self,dirn):
         """Return a list of all files under a directory
         
         """
@@ -137,7 +172,7 @@ class Compare:
         files.sort()
         return files
 
-    def check_md5(self,filen):
+    def _check_md5(self,filen):
         """Compare MD5 sums of two copies of a file
 
         Calculates and compares the MD5 sums of each copy of the
@@ -190,4 +225,4 @@ if __name__ == "__main__":
     logging.basicConfig(format='%(message)s')
     
     # Invoke the comparison
-    comparison = Compare(from_dir,to_dir).report(output_file)
+    comparison = Compare(from_dir,to_dir,report_progress=options.progress).report(output_file)
