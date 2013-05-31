@@ -33,6 +33,8 @@ class Window(QtGui.QWidget):
         # Define startComparison slot
         # This disables the start button and initiates the comparison
         self.startButton.setEnabled(False)
+        self.selectFrom.setEnabled(False)
+        self.selectTo.setEnabled(False)
         from_dir = self.selectFrom.selected_dir
         to_dir = self.selectTo.selected_dir
         self.thread.compare(from_dir,to_dir)
@@ -41,6 +43,8 @@ class Window(QtGui.QWidget):
         # Define the updateUi slot
         # This re-enables the start button
         self.startButton.setEnabled(True)
+        self.selectFrom.setEnabled(True)
+        self.selectTo.setEnabled(True)
 
 class Worker(QtCore.QThread):
     def __init__(self,parent=None):
@@ -74,12 +78,12 @@ class DirSelectionLine(QtGui.QWidget):
         lbl = QtGui.QLabel("%s:" % name)
         lbl.setFixedWidth(40)
         # Selection dialog
-        btn = QtGui.QPushButton("Select",self)
-        btn.clicked.connect(self.showDialog)
+        self.showDialogButton = QtGui.QPushButton("Select",self)
+        self.showDialogButton.clicked.connect(self.showDialog)
         # Put them together
         hbox.addWidget(lbl)
         hbox.addWidget(self.selected_dir_label)
-        hbox.addWidget(btn)
+        hbox.addWidget(self.showDialogButton)
         self.setLayout(hbox)
 
     @property
@@ -89,6 +93,10 @@ class DirSelectionLine(QtGui.QWidget):
     def showDialog(self):
         dirn = str(QtGui.QFileDialog.getExistingDirectory(self,'Select directory',))
         self.selected_dir_label.setText(dirn)
+
+    def setEnabled(self,enabled):
+        self.selected_dir_label.setEnabled(enabled)
+        self.showDialogButton.setEnabled(enabled)
 
 if __name__ == "__main__":
     app = QtGui.QApplication(sys.argv)
