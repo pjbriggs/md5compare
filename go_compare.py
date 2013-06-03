@@ -12,11 +12,10 @@ class Window(QtGui.QWidget):
     def __init__(self,parent=None):
         # Initialise base class
         QtGui.QWidget.__init__(self,parent)
-        # Create worker thread
-        self.thread = Worker()
         # Build the user interface
         self.selectFrom = DirSelectionLine("From")
         self.selectTo = DirSelectionLine("To")
+        self.progressBar = QtGui.QProgressBar(self)
         self.startButton = QtGui.QPushButton(self.tr("&Start"))
         self.stopButton = QtGui.QPushButton(self.tr("Sto&p"))
         self.quitButton = QtGui.QPushButton(self.tr("&Quit"))
@@ -29,16 +28,20 @@ class Window(QtGui.QWidget):
         self.startButton.clicked.connect(self.startComparison)
         self.stopButton.clicked.connect(self.stopComparison)
         self.quitButton.clicked.connect(QtCore.QCoreApplication.instance().quit)
-        self.thread.finished.connect(self.updateUi)
         # Build the layout
         layout = QtGui.QVBoxLayout()
         layout.addWidget(self.selectFrom)
         layout.addWidget(self.selectTo)
+        layout.addWidget(self.progressBar)
         layout.addLayout(buttons)
         self.setLayout(layout)
         self.setWindowTitle(self.tr("Go Compare"))
         # Ensure buttons are in the correct initial state
         self.updateUi()
+        # Create worker thread
+        self.thread = Worker()
+        self.thread.finished.connect(self.updateUi)
+        self.connect(self.thread,QtCore.SIGNAL("update_progress(float)"),self.updateProgress)
 
     def startComparison(self):
         # Define startComparison slot
@@ -47,6 +50,7 @@ class Window(QtGui.QWidget):
         self.stopButton.setEnabled(True)
         self.selectFrom.setEnabled(False)
         self.selectTo.setEnabled(False)
+        self.progressBar.setValue(0)
         from_dir = self.selectFrom.selected_dir
         to_dir = self.selectTo.selected_dir
         self.thread.compare(from_dir,to_dir)
@@ -55,8 +59,13 @@ class Window(QtGui.QWidget):
         # Define stopComparison slot
         # This stops a running comparison
         if self.thread.isRunning():
+            print "Terminating running application"
             self.thread.terminate() # Not supposed to do this
         self.updateUi()
+
+    def updateProgress(self,value):
+        # Update the progress bar
+        self.progressBar.setValue(value)
 
     def updateUi(self):
         # Define the updateUi slot
@@ -80,11 +89,21 @@ class Worker(QtCore.QThread):
         self.to_dir = to_dir
         self.start()
 
+    def update_progress(self,msg):
+        # Called each time the compare function sends an update
+        if msg.startswith("Done"):
+            n = float(msg.split()[1].split('/')[0])
+            m = float(msg.split()[1].split('/')[1])
+            self.emit(QtCore.SIGNAL("update_progress(float)"),float(n/m*100.0))
+
     def run(self):
         # Note: This is never called directly. It is called by Qt once the
         # thread environment has been set up.
         compare.Compare(self.from_dir,self.to_dir,
-                        report_progress=True).report()
+                        report_progress=True,
+                        progress_callback=self.update_progress).report()
+        # Finished, signal that we've reach 100% complete
+        self.emit(QtCore.SIGNAL("update_progress(float)"),float(100))
 
 class DirSelectionLine(QtGui.QWidget):
     def __init__(self,name):
