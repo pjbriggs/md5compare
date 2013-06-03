@@ -103,7 +103,7 @@ class Window(QtGui.QWidget):
                                             QtGui.QMessageBox.Yes | QtGui.QMessageBox.Default,
                                             QtGui.QMessageBox.No)
         if ret == QtGui.QMessageBox.Yes:
-            webbrowser.open("file://%s" % self.selectOutput.selected)
+            webbrowser.open("file:%s%s" % (os.sep*2,output))
         self.updateUi()
 
     def updateProgress(self,value):
