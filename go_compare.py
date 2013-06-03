@@ -16,6 +16,7 @@ class Window(QtGui.QWidget):
         self.selectFrom = DirSelectionLine("From")
         self.selectTo = DirSelectionLine("To")
         self.progressBar = QtGui.QProgressBar(self)
+        self.statusBar = QtGui.QLabel()
         self.startButton = QtGui.QPushButton(self.tr("&Start"))
         self.stopButton = QtGui.QPushButton(self.tr("Sto&p"))
         self.quitButton = QtGui.QPushButton(self.tr("&Quit"))
@@ -33,6 +34,7 @@ class Window(QtGui.QWidget):
         layout.addWidget(self.selectFrom)
         layout.addWidget(self.selectTo)
         layout.addWidget(self.progressBar)
+        layout.addWidget(self.statusBar)
         layout.addLayout(buttons)
         self.setLayout(layout)
         self.setWindowTitle(self.tr("Go Compare"))
@@ -42,6 +44,7 @@ class Window(QtGui.QWidget):
         self.thread = Worker()
         self.thread.finished.connect(self.updateUi)
         self.connect(self.thread,QtCore.SIGNAL("update_progress(float)"),self.updateProgress)
+        self.connect(self.thread,QtCore.SIGNAL("update_status(QString)"),self.updateStatus)
 
     def startComparison(self):
         # Define startComparison slot
@@ -66,6 +69,10 @@ class Window(QtGui.QWidget):
     def updateProgress(self,value):
         # Update the progress bar
         self.progressBar.setValue(value)
+
+    def updateStatus(self,msg):
+        # Update the status label
+        self.statusBar.setText(msg)
 
     def updateUi(self):
         # Define the updateUi slot
@@ -95,6 +102,7 @@ class Worker(QtCore.QThread):
             n = float(msg.split()[1].split('/')[0])
             m = float(msg.split()[1].split('/')[1])
             self.emit(QtCore.SIGNAL("update_progress(float)"),float(n/m*100.0))
+        self.emit(QtCore.SIGNAL("update_status(QString)"),QtCore.QString(msg))
 
     def run(self):
         # Note: This is never called directly. It is called by Qt once the
@@ -104,6 +112,7 @@ class Worker(QtCore.QThread):
                         progress_callback=self.update_progress).report()
         # Finished, signal that we've reach 100% complete
         self.emit(QtCore.SIGNAL("update_progress(float)"),float(100))
+        self.emit(QtCore.SIGNAL("update_status(QString)"),QtCore.QString("Finished"))
 
 class DirSelectionLine(QtGui.QWidget):
     def __init__(self,name):
