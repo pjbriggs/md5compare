@@ -26,11 +26,10 @@ class Window(QtGui.QWidget):
         buttons.addWidget(self.stopButton)
         buttons.addWidget(self.quitButton)
         # Connect signals to slots
-        self.connect(self.startButton,QtCore.SIGNAL("clicked()"),self.startComparison)
-        self.connect(self.stopButton,QtCore.SIGNAL("clicked()"),self.stopComparison)
-        self.connect(self.quitButton,QtCore.SIGNAL("clicked()"),
-                     QtCore.QCoreApplication.instance().quit)
-        self.connect(self.thread,QtCore.SIGNAL("finished()"),self.updateUi)
+        self.startButton.clicked.connect(self.startComparison)
+        self.stopButton.clicked.connect(self.stopComparison)
+        self.quitButton.clicked.connect(QtCore.QCoreApplication.instance().quit)
+        self.thread.finished.connect(self.updateUi)
         # Build the layout
         layout = QtGui.QVBoxLayout()
         layout.addWidget(self.selectFrom)
