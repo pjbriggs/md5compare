@@ -18,31 +18,52 @@ class Window(QtGui.QWidget):
         self.selectFrom = DirSelectionLine("From")
         self.selectTo = DirSelectionLine("To")
         self.startButton = QtGui.QPushButton(self.tr("&Start"))
+        self.stopButton = QtGui.QPushButton(self.tr("Sto&p"))
+        self.quitButton = QtGui.QPushButton(self.tr("&Quit"))
+        # Put buttons into a box
+        buttons = QtGui.QHBoxLayout()
+        buttons.addWidget(self.startButton)
+        buttons.addWidget(self.stopButton)
+        buttons.addWidget(self.quitButton)
         # Connect signals to slots
         self.connect(self.startButton,QtCore.SIGNAL("clicked()"),self.startComparison)
+        self.connect(self.stopButton,QtCore.SIGNAL("clicked()"),self.stopComparison)
+        self.connect(self.quitButton,QtCore.SIGNAL("clicked()"),
+                     QtCore.QCoreApplication.instance().quit)
         self.connect(self.thread,QtCore.SIGNAL("finished()"),self.updateUi)
         # Build the layout
         layout = QtGui.QVBoxLayout()
         layout.addWidget(self.selectFrom)
         layout.addWidget(self.selectTo)
-        layout.addWidget(self.startButton)
+        layout.addLayout(buttons)
         self.setLayout(layout)
         self.setWindowTitle(self.tr("Go Compare"))
+        # Ensure buttons are in the correct initial state
+        self.updateUi()
 
     def startComparison(self):
         # Define startComparison slot
-        # This disables the start button and initiates the comparison
+        # This disables the start button etc and initiates the comparison
         self.startButton.setEnabled(False)
+        self.stopButton.setEnabled(True)
         self.selectFrom.setEnabled(False)
         self.selectTo.setEnabled(False)
         from_dir = self.selectFrom.selected_dir
         to_dir = self.selectTo.selected_dir
         self.thread.compare(from_dir,to_dir)
 
+    def stopComparison(self):
+        # Define stopComparison slot
+        # This stops a running comparison
+        if self.thread.isRunning():
+            self.thread.terminate() # Not supposed to do this
+        self.updateUi()
+
     def updateUi(self):
         # Define the updateUi slot
-        # This re-enables the start button
+        # This re-enables the start button etc
         self.startButton.setEnabled(True)
+        self.stopButton.setEnabled(False)
         self.selectFrom.setEnabled(True)
         self.selectTo.setEnabled(True)
 
