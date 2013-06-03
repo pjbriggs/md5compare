@@ -4,6 +4,8 @@
 #
 import sys
 import os
+import logging
+import webbrowser
 import compare
 from PyQt4 import QtCore
 from PyQt4 import QtGui
@@ -15,6 +17,7 @@ class Window(QtGui.QWidget):
         # Build the user interface
         self.selectFrom = DirSelectionLine("From")
         self.selectTo = DirSelectionLine("To")
+        self.selectOutput = FileSelectionLine("Output")
         self.progressBar = QtGui.QProgressBar(self)
         self.statusBar = QtGui.QLabel()
         self.startButton = QtGui.QPushButton(self.tr("&Start"))
@@ -33,6 +36,7 @@ class Window(QtGui.QWidget):
         layout = QtGui.QVBoxLayout()
         layout.addWidget(self.selectFrom)
         layout.addWidget(self.selectTo)
+        layout.addWidget(self.selectOutput)
         layout.addWidget(self.progressBar)
         layout.addWidget(self.statusBar)
         layout.addLayout(buttons)
@@ -42,7 +46,7 @@ class Window(QtGui.QWidget):
         self.updateUi()
         # Create worker thread
         self.thread = Worker()
-        self.thread.finished.connect(self.updateUi)
+        self.thread.finished.connect(self.finishComparison)
         self.connect(self.thread,QtCore.SIGNAL("update_progress(float)"),self.updateProgress)
         self.connect(self.thread,QtCore.SIGNAL("update_status(QString)"),self.updateStatus)
 
@@ -53,17 +57,53 @@ class Window(QtGui.QWidget):
         self.stopButton.setEnabled(True)
         self.selectFrom.setEnabled(False)
         self.selectTo.setEnabled(False)
+        self.selectOutput.setEnabled(False)
         self.progressBar.setValue(0)
-        from_dir = self.selectFrom.selected_dir
-        to_dir = self.selectTo.selected_dir
-        self.thread.compare(from_dir,to_dir)
+        # Collect the to, from and output selections
+        from_dir = self.selectFrom.selected
+        to_dir = self.selectTo.selected
+        output = self.selectOutput.selected
+        if os.path.exists(output):
+            # Prompt before overwriting an existing file
+            logging.debug("%s already exists" % output)
+            ret = QtGui.QMessageBox.warning(self,self.tr("File exists"),
+                                            self.tr("File '%s'\nalready exists\nDo you want to overwrite it?" % output),
+                                            QtGui.QMessageBox.No | QtGui.QMessageBox.Default,
+                                            QtGui.QMessageBox.Yes)
+            if ret == QtGui.QMessageBox.No:
+                self.updateUi()
+                return
+            else:
+                os.remove(output)
+        # Do the comparison
+        self.thread.compare(from_dir,to_dir,output)
 
     def stopComparison(self):
         # Define stopComparison slot
         # This stops a running comparison
         if self.thread.isRunning():
-            print "Terminating running application"
+            logging.debug("Terminating running application")
             self.thread.terminate() # Not supposed to do this
+        self.updateUi()
+
+    def finishComparison(self):
+        # Define finishComparison slot
+        # This handles the result of the comparison once it's completed
+        # Check that the output file exists
+        output = os.path.abspath(self.selectOutput.selected)
+        if not os.path.exists(output):
+            # No output file
+            QtGui.QMessageBox.critical(self,self.tr("Comparison failed"),
+                                       self.tr("No output file written for the comparison"))
+            self.updateUi()
+            return
+        # Check the output file for problems
+        ret = QtGui.QMessageBox.information(self,self.tr("Comparison completed"),
+                                            self.tr("Comparison completed\nView the report?"),
+                                            QtGui.QMessageBox.Yes | QtGui.QMessageBox.Default,
+                                            QtGui.QMessageBox.No)
+        if ret == QtGui.QMessageBox.Yes:
+            webbrowser.open("file://%s" % self.selectOutput.selected)
         self.updateUi()
 
     def updateProgress(self,value):
@@ -81,6 +121,7 @@ class Window(QtGui.QWidget):
         self.stopButton.setEnabled(False)
         self.selectFrom.setEnabled(True)
         self.selectTo.setEnabled(True)
+        self.selectOutput.setEnabled(True)
 
 class Worker(QtCore.QThread):
     def __init__(self,parent=None):
@@ -91,9 +132,10 @@ class Worker(QtCore.QThread):
         self.exiting = True
         self.wait()
 
-    def compare(self,from_dir,to_dir):
+    def compare(self,from_dir,to_dir,output):
         self.from_dir = from_dir
         self.to_dir = to_dir
+        self.output = output
         self.start()
 
     def update_progress(self,msg):
@@ -109,42 +151,57 @@ class Worker(QtCore.QThread):
         # thread environment has been set up.
         compare.Compare(self.from_dir,self.to_dir,
                         report_progress=True,
-                        progress_callback=self.update_progress).report()
+                        progress_callback=self.update_progress).report(self.output)
         # Finished, signal that we've reach 100% complete
         self.emit(QtCore.SIGNAL("update_progress(float)"),float(100))
         self.emit(QtCore.SIGNAL("update_status(QString)"),QtCore.QString("Finished"))
 
-class DirSelectionLine(QtGui.QWidget):
+class SelectionLine(QtGui.QWidget):
     def __init__(self,name):
-        super(DirSelectionLine,self).__init__()
-        self.dirn = os.getcwd()
-        self.selected_dir_label = QtGui.QLineEdit()
-        self.selected_dir_label.setMaxLength(1000)
+        super(SelectionLine,self).__init__()
+        # Widgets
+        self.selectedLine = QtGui.QLineEdit()
         # Container for line contents
         hbox = QtGui.QHBoxLayout()
         # Line contents: label
-        lbl = QtGui.QLabel("%s:" % name)
-        lbl.setFixedWidth(40)
+        label = QtGui.QLabel("%s" % name)
+        label.setFixedWidth(40)
         # Selection dialog
         self.showDialogButton = QtGui.QPushButton("Select",self)
         self.showDialogButton.clicked.connect(self.showDialog)
         # Put them together
-        hbox.addWidget(lbl)
-        hbox.addWidget(self.selected_dir_label)
+        hbox.addWidget(label)
+        hbox.addWidget(self.selectedLine)
         hbox.addWidget(self.showDialogButton)
         self.setLayout(hbox)
 
     @property
-    def selected_dir(self):
-        return str(self.selected_dir_label.text())
+    def selected(self):
+        return str(self.selectedLine.text())
 
-    def showDialog(self):
-        dirn = str(QtGui.QFileDialog.getExistingDirectory(self,'Select directory',))
-        self.selected_dir_label.setText(dirn)
+    def _set_selected(self,value):
+        self.selectedLine.setText(str(value))
 
     def setEnabled(self,enabled):
-        self.selected_dir_label.setEnabled(enabled)
+        self.selectedLine.setEnabled(enabled)
         self.showDialogButton.setEnabled(enabled)
+
+    def showDialog(self):
+        raise NotImplemented("Subclass must implement showDialog")
+
+class FileSelectionLine(SelectionLine):
+    def __init__(self,name):
+        super(FileSelectionLine,self).__init__(name)
+
+    def showDialog(self):
+        self._set_selected(QtGui.QFileDialog.getOpenFileName(self,'Open file',))
+
+class DirSelectionLine(SelectionLine):
+    def __init__(self,name):
+        super(DirSelectionLine,self).__init__(name)
+
+    def showDialog(self):
+        self._set_selected(QtGui.QFileDialog.getExistingDirectory(self,'Select directory',))
 
 if __name__ == "__main__":
     app = QtGui.QApplication(sys.argv)
