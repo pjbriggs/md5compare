@@ -40,7 +40,8 @@ class Compare:
     """
 
     def __init__(self,from_dir,to_dir,
-                 report_progress=False,progress_callback=None):
+                 report_progress=False,report_every=0,
+                 progress_callback=None):
         """Create a new Compare object
 
         Arguments:
@@ -49,6 +50,9 @@ class Compare:
           report_progress: if True then invoke progress_callback
             with progress messages, or write to stdout (if callback
             is not defined)
+          report_every: if non-zero then send a progress update for
+            every n files that are checked (if n=0 then a reasonable
+            value will be set automatically)
           progress: (optional) callback function that will be
             invoked to report progress
 
@@ -58,6 +62,7 @@ class Compare:
         self._to_dir = to_dir
         # Store progress options and callback function
         self._report_progress_flag = report_progress
+        self._report_every = report_every
         self._progress_callback = progress_callback
         # Setup
         self.setup()
@@ -88,22 +93,23 @@ class Compare:
 
         """
         nfiles = len(self._common)
-        n_mod = int(float(nfiles)/100)
+        if self._report_every < 1:
+            n_mod = int(float(nfiles)/100)
+        else:
+            n_mod = self._report_every
         if n_mod == 0: n_mod = 1
         n = 0
         failed_md5 = []
         unreadable = []
         for f in self._common:
+            n += 1
+            if n%n_mod == 0:
+                self._report_progress("Examining %d/%d (%s)" % (n,nfiles,f))
             try:
                 if not self._check_md5(f):
                     failed_md5.append(f)
             except IOError:
                 unreadable.append(f)
-            n += 1
-            if n%n_mod == 0:
-                self._report_progress("Done %d/%d (%.1f%%)" % (n,
-                                                              nfiles,
-                                                              float(n)/float(nfiles)*100.0))
         self._failed_md5 = failed_md5
         self._unreadable = unreadable
 
@@ -119,27 +125,32 @@ class Compare:
         """
         # Deal with output file
         if output_file is not None:
+            self._report_progress("Writing report to %s" % output_file)
             self.report(fp=open(output_file,'w'))
             return
+        # Calculate numbers of files that passed, failed etc
+        n_passed = len(self._common) - len(self._failed_md5) - len(self._unreadable)
+        n_failed = len(self._failed_md5)
+        n_unreadable = len(self._unreadable)
+        n_only_in_from = len(self._only_in_from)
+        n_only_in_to = len(self._only_in_to)
         # Preamble
         title_line = "Comparing contents of %s and %s" % (self._from_dir,
                                                           self._to_dir)
         fp.write("%s\n%s\n" % (title_line,"="*len(title_line)))
         # Summary
         fp.write("\nSummary\n%s\n" % ("-"*len("Summary")))
-        fp.write("\t%d files only found in %s\n" % (len(self._only_in_from),self._from_dir))
-        fp.write("\t%d files only found in %s\n" % (len(self._only_in_to),self._to_dir))
+        fp.write("\t%d files only found in %s\n" % (n_only_in_from,self._from_dir))
+        fp.write("\t%d files only found in %s\n" % (n_only_in_to,self._to_dir))
         fp.write("\t%d files in both\n" % len(self._common))
-        fp.write("\t\t%d files OK\n" % (len(self._common) -
-                                        len(self._failed_md5) -
-                                        len(self._unreadable)))
-        fp.write("\t\t%d files FAILED\n" % len(self._failed_md5))
-        fp.write("\t\t%d files UNREADABLE\n" % len(self._unreadable))
+        fp.write("\t\t%d files OK\n" % n_passed)
+        fp.write("\t\t%d files FAILED\n" % n_failed)
+        fp.write("\t\t%d files UNREADABLE\n" % n_unreadable)
         # Files only in one or the other directory
-        fp.write("\nFiles only in %s (%d)\n" % (self._from_dir,len(self._only_in_from)))
+        fp.write("\nFiles only in %s (%d)\n" % (self._from_dir,n_only_in_from))
         for f in self._only_in_from:
             fp.write("\t%s\n" % str(f))
-        fp.write("\nFiles only in %s (%d)\n" % (self._to_dir,len(self._only_in_to)))
+        fp.write("\nFiles only in %s (%d)\n" % (self._to_dir,n_only_in_to))
         for f in self._only_in_to:
             fp.write("\t%s\n" % str(f))
         # Compare checksums for files in both directories
@@ -151,6 +162,20 @@ class Compare:
             elif f in self._unreadable:
                 status = "UNREADABLE"
             fp.write("\t%s\t%s\n" % (status,f))
+        # Send a progress update indicating final result
+        summary = ["Finished: %d OK" % n_passed]
+        if n_failed > 0:
+            summary.append(", %d failed" % n_failed)
+        if n_unreadable > 0:
+            summary.append(", %d 'bad' files" % n_unreadable)
+        if n_only_in_from > 0 or n_only_in_to > 0:
+            summary.append(", %d 'extra' files" % (n_only_in_from + n_only_in_to))
+        self._report_progress(' '.join(summary))
+        # Return status depending on whether there were problems
+        if n_failed or n_unreadable or (n_only_in_from + n_only_in_to):
+            return False
+        else:
+            return True
 
     def _report_progress(self,message):
         if self._report_progress_flag:
