@@ -15,9 +15,9 @@ class Window(QtGui.QWidget):
         # Initialise base class
         QtGui.QWidget.__init__(self,parent)
         # Build the user interface
-        self.selectFrom = DirSelectionLine()
-        self.selectTo = DirSelectionLine()
-        self.selectOutput = FileSelectionLine()
+        self.selectFrom = DirSelectionLine(tooltip="Select the source ('from') directory")
+        self.selectTo = DirSelectionLine(tooltip="Select the target ('to') directory to compare")
+        self.selectOutput = FileSelectionLine(tooltip="Specify a file to write the final report to")
         # Put selection lines into a form layout
         self.selectForm = QtGui.QFormLayout()
         self.selectForm.addRow("From",self.selectFrom)
@@ -48,7 +48,7 @@ class Window(QtGui.QWidget):
         layout.addLayout(buttons)
         layout.addStretch(1)
         self.setLayout(layout)
-        self.setWindowTitle(self.tr("Go Compare"))
+        self.setWindowTitle(self.tr("Go Compare: Md5 sum checker"))
         self.setMinimumWidth(600)
         # Ensure buttons are in the correct initial state
         self.updateUi()
@@ -180,10 +180,12 @@ class Worker(QtCore.QThread):
         self.emit(QtCore.SIGNAL("update_progress(float)"),float(100))
 
 class SelectionLine(QtGui.QWidget):
-    def __init__(self,name=None):
+    def __init__(self,name=None,tooltip=None):
         super(SelectionLine,self).__init__()
         # Widgets
         self.selectedLine = QtGui.QLineEdit()
+        if tooltip is not None:
+            self.selectedLine.setToolTip(tooltip)
         # Container for line contents
         hbox = QtGui.QHBoxLayout()
         # Line contents
@@ -193,6 +195,7 @@ class SelectionLine(QtGui.QWidget):
             label.setFixedWidth(40)
         # Selection dialog
         self.showDialogButton = QtGui.QPushButton("Select",self)
+        self.showDialogButton.setToolTip("Select file/directory to use")
         self.showDialogButton.clicked.connect(self.showDialog)
         # Put them together
         if name is not None:
@@ -216,8 +219,8 @@ class SelectionLine(QtGui.QWidget):
         raise NotImplemented("Subclass must implement showDialog")
 
 class FileSelectionLine(SelectionLine):
-    def __init__(self,name=None):
-        super(FileSelectionLine,self).__init__(name)
+    def __init__(self,name=None,tooltip=None):
+        super(FileSelectionLine,self).__init__(name,tooltip)
 
     def showDialog(self):
         new_selection = str(QtGui.QFileDialog.getOpenFileName(self,'Open file',))
@@ -225,8 +228,8 @@ class FileSelectionLine(SelectionLine):
             self._set_selected(os.path.abspath(new_selection))
 
 class DirSelectionLine(SelectionLine):
-    def __init__(self,name=None):
-        super(DirSelectionLine,self).__init__(name)
+    def __init__(self,name=None,tooltip=None):
+        super(DirSelectionLine,self).__init__(name,tooltip)
 
     def showDialog(self):
         self._set_selected(QtGui.QFileDialog.getExistingDirectory(self,'Select directory',))
