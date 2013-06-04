@@ -15,11 +15,18 @@ class Window(QtGui.QWidget):
         # Initialise base class
         QtGui.QWidget.__init__(self,parent)
         # Build the user interface
-        self.selectFrom = DirSelectionLine("From")
-        self.selectTo = DirSelectionLine("To")
-        self.selectOutput = FileSelectionLine("Output")
+        self.selectFrom = DirSelectionLine()
+        self.selectTo = DirSelectionLine()
+        self.selectOutput = FileSelectionLine()
+        # Put selection lines into a form layout
+        self.selectForm = QtGui.QFormLayout()
+        self.selectForm.addRow("From",self.selectFrom)
+        self.selectForm.addRow("To",self.selectTo)
+        self.selectForm.addRow("Output",self.selectOutput)
+        # Progress and status bars
         self.progressBar = QtGui.QProgressBar(self)
         self.statusBar = QtGui.QLabel()
+        # Buttons
         self.startButton = QtGui.QPushButton(self.tr("&Start"))
         self.stopButton = QtGui.QPushButton(self.tr("Sto&p"))
         self.quitButton = QtGui.QPushButton(self.tr("&Quit"))
@@ -35,9 +42,7 @@ class Window(QtGui.QWidget):
         self.quitButton.clicked.connect(QtCore.QCoreApplication.instance().quit)
         # Build the layout
         layout = QtGui.QVBoxLayout()
-        layout.addWidget(self.selectFrom)
-        layout.addWidget(self.selectTo)
-        layout.addWidget(self.selectOutput)
+        layout.addLayout(self.selectForm)
         layout.addWidget(self.progressBar)
         layout.addWidget(self.statusBar)
         layout.addLayout(buttons)
@@ -55,6 +60,13 @@ class Window(QtGui.QWidget):
 
     def startComparison(self):
         # Define startComparison slot
+        # Check that there are valid inputs
+        if not (os.path.isdir(self.selectFrom.selected) and \
+                    os.path.isdir(self.selectTo.selected) and \
+                    self.selectOutput.selected):
+            QtGui.QMessageBox.warning(self,self.tr("Invalid inputs"),
+                                      self.tr("You need to select existing directory\nand output file names"),)
+            return
         # This disables the start button etc and initiates the comparison
         self.startButton.setEnabled(False)
         self.stopButton.setEnabled(True)
@@ -168,20 +180,23 @@ class Worker(QtCore.QThread):
         self.emit(QtCore.SIGNAL("update_progress(float)"),float(100))
 
 class SelectionLine(QtGui.QWidget):
-    def __init__(self,name):
+    def __init__(self,name=None):
         super(SelectionLine,self).__init__()
         # Widgets
         self.selectedLine = QtGui.QLineEdit()
         # Container for line contents
         hbox = QtGui.QHBoxLayout()
-        # Line contents: label
-        label = QtGui.QLabel("%s" % name)
-        label.setFixedWidth(40)
+        # Line contents
+        if name is not None:
+            # Optional label
+            label = QtGui.QLabel("%s" % name)
+            label.setFixedWidth(40)
         # Selection dialog
         self.showDialogButton = QtGui.QPushButton("Select",self)
         self.showDialogButton.clicked.connect(self.showDialog)
         # Put them together
-        hbox.addWidget(label)
+        if name is not None:
+            hbox.addWidget(label)
         hbox.addWidget(self.selectedLine)
         hbox.addWidget(self.showDialogButton)
         self.setLayout(hbox)
@@ -201,14 +216,16 @@ class SelectionLine(QtGui.QWidget):
         raise NotImplemented("Subclass must implement showDialog")
 
 class FileSelectionLine(SelectionLine):
-    def __init__(self,name):
+    def __init__(self,name=None):
         super(FileSelectionLine,self).__init__(name)
 
     def showDialog(self):
-        self._set_selected(QtGui.QFileDialog.getOpenFileName(self,'Open file',))
+        new_selection = str(QtGui.QFileDialog.getOpenFileName(self,'Open file',))
+        if new_selection:
+            self._set_selected(os.path.abspath(new_selection))
 
 class DirSelectionLine(SelectionLine):
-    def __init__(self,name):
+    def __init__(self,name=None):
         super(DirSelectionLine,self).__init__(name)
 
     def showDialog(self):
