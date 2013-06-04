@@ -28,6 +28,7 @@ class Window(QtGui.QWidget):
         buttons.addWidget(self.startButton)
         buttons.addWidget(self.stopButton)
         buttons.addWidget(self.quitButton)
+        buttons.addStretch(1)
         # Connect signals to slots
         self.startButton.clicked.connect(self.startComparison)
         self.stopButton.clicked.connect(self.stopComparison)
@@ -40,8 +41,10 @@ class Window(QtGui.QWidget):
         layout.addWidget(self.progressBar)
         layout.addWidget(self.statusBar)
         layout.addLayout(buttons)
+        layout.addStretch(1)
         self.setLayout(layout)
         self.setWindowTitle(self.tr("Go Compare"))
+        self.setMinimumWidth(600)
         # Ensure buttons are in the correct initial state
         self.updateUi()
         # Create worker thread
@@ -98,10 +101,18 @@ class Window(QtGui.QWidget):
             self.updateUi()
             return
         # Check the output file for problems
-        ret = QtGui.QMessageBox.information(self,self.tr("Comparison completed"),
-                                            self.tr("Comparison completed\nView the report?"),
-                                            QtGui.QMessageBox.Yes | QtGui.QMessageBox.Default,
-                                            QtGui.QMessageBox.No)
+        status = str(self.statusBar.text())
+        failed = status.count("failed") > 0
+        bad = status.count("bad") > 0
+        extra = status.count("extra") > 0
+        if failed or bad or extra:
+            qbox = QtGui.QMessageBox.critical
+        else:
+            qbox = QtGui.QMessageBox.information
+        ret = qbox(self,self.tr("Comparison completed"),
+                   self.tr("Comparison completed:\n\n%s\n\nView the full report?" % status),
+                   QtGui.QMessageBox.Yes | QtGui.QMessageBox.Default,
+                   QtGui.QMessageBox.No)
         if ret == QtGui.QMessageBox.Yes:
             webbrowser.open("file:%s%s" % (os.sep*2,output))
         self.updateUi()
@@ -140,7 +151,7 @@ class Worker(QtCore.QThread):
 
     def update_progress(self,msg):
         # Called each time the compare function sends an update
-        if msg.startswith("Done"):
+        if msg.startswith("Examining"):
             n = float(msg.split()[1].split('/')[0])
             m = float(msg.split()[1].split('/')[1])
             self.emit(QtCore.SIGNAL("update_progress(float)"),float(n/m*100.0))
@@ -151,10 +162,10 @@ class Worker(QtCore.QThread):
         # thread environment has been set up.
         compare.Compare(self.from_dir,self.to_dir,
                         report_progress=True,
+                        report_every=1,
                         progress_callback=self.update_progress).report(self.output)
         # Finished, signal that we've reach 100% complete
         self.emit(QtCore.SIGNAL("update_progress(float)"),float(100))
-        self.emit(QtCore.SIGNAL("update_status(QString)"),QtCore.QString("Finished"))
 
 class SelectionLine(QtGui.QWidget):
     def __init__(self,name):
