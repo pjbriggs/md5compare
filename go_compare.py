@@ -223,7 +223,9 @@ class FileSelectionLine(SelectionLine):
         super(FileSelectionLine,self).__init__(name,tooltip)
 
     def showDialog(self):
-        new_selection = str(QtGui.QFileDialog.getOpenFileName(self,'Open file',))
+        dialog = QtGui.QFileDialog()
+        dialog.setFileMode(QtGui.QFileDialog.AnyFile);
+        new_selection = str(dialog.getSaveFileName(self,'Open file',))
         if new_selection:
             self._set_selected(os.path.abspath(new_selection))
 
