@@ -168,7 +168,7 @@ class Compare:
                 status = "UNREADABLE"
             fp.write("\t%s\t%s\n" % (status,f))
         # Send a progress update indicating final result
-        summary = ["Finished: %d OK" % n_passed]
+        summary = ["Finished: %d/%d OK" % (n_passed,len(self._common))]
         if n_failed > 0:
             summary.append(", %d failed" % n_failed)
         if n_unreadable > 0:
