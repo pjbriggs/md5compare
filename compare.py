@@ -28,6 +28,7 @@ import sys
 import os
 import optparse
 import logging
+import time
 import Md5sum
 
 #######################################################################
@@ -65,9 +66,11 @@ class Compare:
         self._report_every = report_every
         self._progress_callback = progress_callback
         # Setup
+        self._start_time = time.time()
         self.setup()
         # Do checksum comparison
         self.go_compare()
+        self._end_time = time.time()
 
     def setup(self):
         """Collect lists of files for comparison
@@ -138,6 +141,8 @@ class Compare:
         title_line = "Comparing contents of %s and %s" % (self._from_dir,
                                                           self._to_dir)
         fp.write("%s\n%s\n" % (title_line,"="*len(title_line)))
+        fp.write("\nStart time: %s\nEnd time  : %s\n" % (time.ctime(self._start_time),
+                                                         time.ctime(self._end_time)))
         # Summary
         fp.write("\nSummary\n%s\n" % ("-"*len("Summary")))
         fp.write("\t%d files only found in %s\n" % (n_only_in_from,self._from_dir))
