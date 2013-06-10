@@ -18,6 +18,13 @@ class Window(QtGui.QWidget):
         self.selectFrom = DirSelectionLine(tooltip="Select the source ('from') directory")
         self.selectTo = DirSelectionLine(tooltip="Select the target ('to') directory to compare")
         self.selectOutput = FileSelectionLine(tooltip="Specify a file to write the final report to")
+        # Connect signals to slots for the selection widgets
+        self.connect(self.selectFrom,QtCore.SIGNAL("updated_selection(QString)"),
+                     self.validateInputs)
+        self.connect(self.selectTo,QtCore.SIGNAL("updated_selection(QString)"),
+                     self.validateInputs)
+        self.connect(self.selectOutput,QtCore.SIGNAL("updated_selection(QString)"),
+                     self.validateInputs)
         # Put selection lines into a form layout
         self.selectForm = QtGui.QFormLayout()
         self.selectForm.addRow("From",self.selectFrom)
@@ -36,7 +43,7 @@ class Window(QtGui.QWidget):
         buttons.addWidget(self.stopButton)
         buttons.addWidget(self.quitButton)
         buttons.addStretch(1)
-        # Connect signals to slots
+        # Connect signals to slots for the buttons
         self.startButton.clicked.connect(self.startComparison)
         self.stopButton.clicked.connect(self.stopComparison)
         self.quitButton.clicked.connect(QtCore.QCoreApplication.instance().quit)
@@ -58,15 +65,20 @@ class Window(QtGui.QWidget):
         self.connect(self.thread,QtCore.SIGNAL("update_progress(float)"),self.updateProgress)
         self.connect(self.thread,QtCore.SIGNAL("update_status(QString)"),self.updateStatus)
 
+    def validateInputs(self,text):
+        # Define validateInputs slot
+        # Clear the status bar
+        self.updateStatus("")
+        # Check that inputs are valid and update the UI accordingly
+        if os.path.isdir(self.selectFrom.selected) and \
+                os.path.isdir(self.selectTo.selected) and \
+                self.selectOutput.selected:
+            self.startButton.setEnabled(True)
+        else:
+            self.startButton.setEnabled(False)
+
     def startComparison(self):
         # Define startComparison slot
-        # Check that there are valid inputs
-        if not (os.path.isdir(self.selectFrom.selected) and \
-                    os.path.isdir(self.selectTo.selected) and \
-                    self.selectOutput.selected):
-            QtGui.QMessageBox.warning(self,self.tr("Invalid inputs"),
-                                      self.tr("You need to select existing directory\nand output file names"),)
-            return
         # This disables the start button etc and initiates the comparison
         self.startButton.setEnabled(False)
         self.stopButton.setEnabled(True)
@@ -112,6 +124,7 @@ class Window(QtGui.QWidget):
                                        self.tr("No output file written for the comparison"))
             self.updateUi()
             return
+        self.updateUi()
         # Check the output file for problems
         status = str(self.statusBar.text())
         failed = status.count("failed") > 0
@@ -127,7 +140,6 @@ class Window(QtGui.QWidget):
                    QtGui.QMessageBox.No)
         if ret == QtGui.QMessageBox.Yes:
             webbrowser.open("file:%s%s" % (os.sep*2,output))
-        self.updateUi()
 
     def updateProgress(self,value):
         # Update the progress bar
@@ -140,7 +152,7 @@ class Window(QtGui.QWidget):
     def updateUi(self):
         # Define the updateUi slot
         # This re-enables the start button etc
-        self.startButton.setEnabled(True)
+        self.startButton.setEnabled(False)
         self.stopButton.setEnabled(False)
         self.selectFrom.setEnabled(True)
         self.selectTo.setEnabled(True)
@@ -203,6 +215,8 @@ class SelectionLine(QtGui.QWidget):
         hbox.addWidget(self.selectedLine)
         hbox.addWidget(self.showDialogButton)
         self.setLayout(hbox)
+        # Connect the 
+        self.selectedLine.textChanged.connect(self.updated)
 
     @property
     def selected(self):
@@ -210,6 +224,12 @@ class SelectionLine(QtGui.QWidget):
 
     def _set_selected(self,value):
         self.selectedLine.setText(str(value))
+        # Send signal indicating selection was updated
+        ##self.emit(QtCore.SIGNAL("updated_selection(QString)"),
+        ##          QtCore.QString(self.selected))
+
+    def updated(self,text):
+        self.emit(QtCore.SIGNAL("updated_selection(QString)"),text)
 
     def setEnabled(self,enabled):
         self.selectedLine.setEnabled(enabled)
