@@ -5,6 +5,7 @@
 import sys
 import os
 import logging
+import time
 import webbrowser
 import compare
 from PyQt4 import QtCore
@@ -20,11 +21,11 @@ class Window(QtGui.QWidget):
         self.selectOutput = FileSelectionLine(tooltip="Specify a file to write the final report to")
         # Connect signals to slots for the selection widgets
         self.connect(self.selectFrom,QtCore.SIGNAL("updated_selection(QString)"),
-                     self.validateInputs)
+                     self.resetUi)
         self.connect(self.selectTo,QtCore.SIGNAL("updated_selection(QString)"),
-                     self.validateInputs)
+                     self.resetUi)
         self.connect(self.selectOutput,QtCore.SIGNAL("updated_selection(QString)"),
-                     self.validateInputs)
+                     self.resetUi)
         # Put selection lines into a form layout
         self.selectForm = QtGui.QFormLayout()
         self.selectForm.addRow("From",self.selectFrom)
@@ -33,6 +34,11 @@ class Window(QtGui.QWidget):
         # Progress and status bars
         self.progressBar = QtGui.QProgressBar(self)
         self.statusBar = QtGui.QLabel()
+        self.statusMessage = ''
+        # Timing comparison operation
+        self.timer = QtCore.QTimer()
+        self.connect(self.timer,QtCore.SIGNAL("timeout()"),self.updateStatus)
+        self.startTime = None
         # Buttons
         self.startButton = QtGui.QPushButton(self.tr("&Start"))
         self.stopButton = QtGui.QPushButton(self.tr("Sto&p"))
@@ -65,17 +71,13 @@ class Window(QtGui.QWidget):
         self.connect(self.thread,QtCore.SIGNAL("update_progress(float)"),self.updateProgress)
         self.connect(self.thread,QtCore.SIGNAL("update_status(QString)"),self.updateStatus)
 
-    def validateInputs(self,text):
-        # Define validateInputs slot
-        # Clear the status bar
+    def resetUi(self):
+        # Define the resetUi slot
+        # Clear the status and progress bars
         self.updateStatus("")
-        # Check that inputs are valid and update the UI accordingly
-        if os.path.isdir(self.selectFrom.selected) and \
-                os.path.isdir(self.selectTo.selected) and \
-                self.selectOutput.selected:
-            self.startButton.setEnabled(True)
-        else:
-            self.startButton.setEnabled(False)
+        self.updateProgress(0)
+        # Validate file/directory selections
+        self.validateInputs()
 
     def startComparison(self):
         # Define startComparison slot
@@ -145,9 +147,54 @@ class Window(QtGui.QWidget):
         # Update the progress bar
         self.progressBar.setValue(value)
 
-    def updateStatus(self,msg):
+    def validateInputs(self,text=None):
+        # Define validateInputs slot
+        # Check that inputs are valid and update the UI accordingly
+        if os.path.isdir(self.selectFrom.selected) and \
+                os.path.isdir(self.selectTo.selected) and \
+                self.selectOutput.selected:
+            self.startButton.setEnabled(True)
+        else:
+            self.startButton.setEnabled(False)
+
+    def updateStatus(self,msg=None):
         # Update the status label
-        self.statusBar.setText(msg)
+        # Process incoming status
+        if msg is not None:
+            self.statusMessage = str(msg)
+        if self.statusMessage.startswith("Examining"):
+            if not self.timer.isActive():
+                # Start timer
+                self.startTime = time.time()
+                self.timer.start(1000)
+        else:
+            if self.timer.isActive():
+                # Stop the timer
+                self.timer.stop()
+        # Construct the message to display
+        status_msg = self.statusMessage
+        if self.timer.isActive():
+            # Prepend elapsed time
+            status_msg = "[Elapsed %s] %s" % (self.getElapsedTime(),status_msg)
+        self.statusBar.setText(status_msg)
+
+    def getElapsedTime(self):
+        # Return the elapsed time since the comparison started
+        elapsed_time = time.time()-self.startTime
+        ret = []
+        days = int(elapsed_time/24.0/60.0/60.0)
+        if days > 0:
+            ret.append("%d days" % days)
+        hours = int(elapsed_time/60.0/60.0) - days*24
+        if hours > 0:
+            ret.append("%d hrs" % hours)
+        minutes = int(elapsed_time/60.0) - (hours+days*24)*60
+        if minutes > 0:
+            ret.append("%d mins" % minutes)
+        if days == 0 and hours == 0:
+            seconds = elapsed_time - (minutes+(hours+days*24)*60)*60
+            ret.append("%ds" % seconds)
+        return ' '.join(ret)
 
     def updateUi(self):
         # Define the updateUi slot
@@ -157,6 +204,8 @@ class Window(QtGui.QWidget):
         self.selectFrom.setEnabled(True)
         self.selectTo.setEnabled(True)
         self.selectOutput.setEnabled(True)
+        # Check if the inputs are still valid
+        self.validateInputs()
 
 class Worker(QtCore.QThread):
     def __init__(self,parent=None):
@@ -254,7 +303,9 @@ class DirSelectionLine(SelectionLine):
         super(DirSelectionLine,self).__init__(name,tooltip)
 
     def showDialog(self):
-        self._set_selected(QtGui.QFileDialog.getExistingDirectory(self,'Select directory',))
+        new_selection = QtGui.QFileDialog.getExistingDirectory(self,'Select directory',)
+        if new_selection:
+            self._set_selected(new_selection)
 
 if __name__ == "__main__":
     app = QtGui.QApplication(sys.argv)
