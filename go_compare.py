@@ -1,7 +1,30 @@
 #!/bin/env python
 #
-# UI for the compare program
+#     go_compare.py: PyQt GUI for  UI for the compare utility
+#     Copyright (C) University of Manchester 2013 Peter Briggs
 #
+########################################################################
+#
+# go_compare.py
+#
+#########################################################################
+
+"""go_compare
+
+A PyQT GUI for the compare utility.
+
+"""
+
+#######################################################################
+# Module metadata
+#######################################################################
+
+__version__ = "0.0.1"
+
+#######################################################################
+# Import modules that this module depends on
+#######################################################################
+
 import sys
 import os
 import logging
@@ -11,8 +34,18 @@ import compare
 from PyQt4 import QtCore
 from PyQt4 import QtGui
 
+#######################################################################
+# Classes
+#######################################################################
+
 class Window(QtGui.QWidget):
+    """Class defining the main window for the compare GUI
+
+    """
     def __init__(self,parent=None):
+        """Create a new Window instance
+
+        """
         # Initialise base class
         QtGui.QWidget.__init__(self,parent)
         # Build the user interface
@@ -66,12 +99,15 @@ class Window(QtGui.QWidget):
         # Ensure buttons are in the correct initial state
         self.updateUi()
         # Create worker thread
-        self.thread = Worker()
+        self.thread = CompareWorker()
         self.thread.finished.connect(self.finishComparison)
         self.connect(self.thread,QtCore.SIGNAL("update_progress(float)"),self.updateProgress)
         self.connect(self.thread,QtCore.SIGNAL("update_status(QString)"),self.updateStatus)
 
     def resetUi(self):
+        """Reset the state of the status and progress bars
+
+        """
         # Define the resetUi slot
         # Clear the status and progress bars
         self.updateStatus("")
@@ -80,6 +116,9 @@ class Window(QtGui.QWidget):
         self.validateInputs()
 
     def startComparison(self):
+        """Start running the directory comparison
+
+        """
         # Define startComparison slot
         # This disables the start button etc and initiates the comparison
         self.startButton.setEnabled(False)
@@ -108,6 +147,9 @@ class Window(QtGui.QWidget):
         self.thread.compare(from_dir,to_dir,output)
 
     def stopComparison(self):
+        """Stop a running comparison process
+
+        """
         # Define stopComparison slot
         # This stops a running comparison
         if self.thread.isRunning():
@@ -116,6 +158,9 @@ class Window(QtGui.QWidget):
         self.updateUi()
 
     def finishComparison(self):
+        """Handle the result of a completed comparison
+
+        """
         # Define finishComparison slot
         # This handles the result of the comparison once it's completed
         # Check that the output file exists
@@ -144,7 +189,12 @@ class Window(QtGui.QWidget):
             webbrowser.open("file:%s%s" % (os.sep*2,output))
 
     def updateProgress(self,value):
-        # Update the progress bar
+        """Update the progress bar
+
+        Arguments:
+          value: new value to set the progress bar to
+
+        """
         self.progressBar.setValue(value)
 
     def validateInputs(self,text=None):
@@ -158,7 +208,13 @@ class Window(QtGui.QWidget):
             self.startButton.setEnabled(False)
 
     def updateStatus(self,msg=None):
-        # Update the status label
+        """Update the status bar
+
+        Arguments:
+          msg: if supplied, is the progress message received from
+            a running comparison.
+
+        """
         # Process incoming status
         if msg is not None:
             self.statusMessage = str(msg)
@@ -179,7 +235,12 @@ class Window(QtGui.QWidget):
         self.statusBar.setText(status_msg)
 
     def getElapsedTime(self):
-        # Return the elapsed time since the comparison started
+        """Return the elapsed time since the comparison started
+
+        Returns the elapsed time as a string, giving the time as 
+        days, hours, minutes and seconds as appropriate.
+
+        """
         elapsed_time = time.time()-self.startTime
         ret = []
         days = int(elapsed_time/24.0/60.0/60.0)
@@ -197,8 +258,11 @@ class Window(QtGui.QWidget):
         return ' '.join(ret)
 
     def updateUi(self):
+        """Update the state of the UI when a comparison isn't running
+
+        """
         # Define the updateUi slot
-        # This re-enables the start button etc
+        # Reset button states to default
         self.startButton.setEnabled(False)
         self.stopButton.setEnabled(False)
         self.selectFrom.setEnabled(True)
@@ -207,8 +271,25 @@ class Window(QtGui.QWidget):
         # Check if the inputs are still valid
         self.validateInputs()
 
-class Worker(QtCore.QThread):
+class CompareWorker(QtCore.QThread):
+    """Class wrapping Compare object in a Qt thread
+
+    Enables a comparison to be run as a separate thread from
+    the GUI, so that the interface isn't blocked.
+
+    Usage is:
+    >>> # Create new thread instance
+    >>> thread = CompareWorker()
+    >>> # Do the comparison
+    >>> thread.compare('dir1','dir2','report.txt')
+
+    
+
+    """
+
     def __init__(self,parent=None):
+        """Create new CompareWorker instance
+        """
         QtCore.QThread.__init__(self,parent)
         self.exiting = False
 
@@ -217,12 +298,31 @@ class Worker(QtCore.QThread):
         self.wait()
 
     def compare(self,from_dir,to_dir,output):
+        """Run a comparison of two directories
+
+        Arguments:
+          from_dir: 'source' directory
+          to_dir:   'target' directory being compared to the source
+          output:   name of a file to write the comparison report to
+        """
         self.from_dir = from_dir
         self.to_dir = to_dir
         self.output = output
         self.start()
 
     def update_progress(self,msg):
+        """Callback function invoked by the running comparison
+
+        This is passed to the 'Compare' object that runs the comparison
+        as a callback that is invoked when progress updates are issued.
+        The progress messages are processed and emitted as a Qt signal
+        in the main application.
+
+        Arguments:
+          msg: message text with progress update from the running
+            Compare object
+
+        """
         # Called each time the compare function sends an update
         if msg.startswith("Examining"):
             n = float(msg.split()[1].split('/')[0])
@@ -231,8 +331,12 @@ class Worker(QtCore.QThread):
         self.emit(QtCore.SIGNAL("update_status(QString)"),QtCore.QString(msg))
 
     def run(self):
-        # Note: This is never called directly. It is called by Qt once the
-        # thread environment has been set up.
+        """Implement the 'run' method of the base class
+
+        Note: This is never called directly. It is called by Qt once the
+        thread environment has been set up.
+
+        """
         compare.Compare(self.from_dir,self.to_dir,
                         report_progress=True,
                         report_every=1,
@@ -241,7 +345,23 @@ class Worker(QtCore.QThread):
         self.emit(QtCore.SIGNAL("update_progress(float)"),float(100))
 
 class SelectionLine(QtGui.QWidget):
+    """Base class for creating file/directory selection widgets
+
+    Creates a composite widget consisting of a line displaying the
+    currently selected file or directory, plus a button to invoke
+    a selection dialog.
+
+    The SelectionLine class should not be instantiated directly,
+    instead it should be subclassed, with the subclass implementing
+    the showDialog method to bring up an appropriate selection
+    dialog.
+
+    """
+
     def __init__(self,name=None,tooltip=None):
+        """Create a SelectionLine instance
+
+        """
         super(SelectionLine,self).__init__()
         # Widgets
         self.selectedLine = QtGui.QLineEdit()
@@ -269,29 +389,58 @@ class SelectionLine(QtGui.QWidget):
 
     @property
     def selected(self):
+        """Return the current selection
+
+        """
         return str(self.selectedLine.text())
 
     def _set_selected(self,value):
+        """Set the selected file or directory
+
+        """
         self.selectedLine.setText(str(value))
-        # Send signal indicating selection was updated
-        ##self.emit(QtCore.SIGNAL("updated_selection(QString)"),
-        ##          QtCore.QString(self.selected))
 
     def updated(self,text):
+        """Emit a signal indicating updates to the selection
+
+        """
         self.emit(QtCore.SIGNAL("updated_selection(QString)"),text)
 
     def setEnabled(self,enabled):
+        """Enable/disable widget
+
+        If 'enabled' is True then the selection line is editable
+        and the file selection button is clickable; if it is True
+        then both the widgets are put into a disabled state.
+
+        """
         self.selectedLine.setEnabled(enabled)
         self.showDialogButton.setEnabled(enabled)
 
     def showDialog(self):
+        """Bring up appropriate dialog and process the result
+
+        Placeholder method that should be implemented by the subclass.
+
+        """
         raise NotImplemented("Subclass must implement showDialog")
 
 class FileSelectionLine(SelectionLine):
+    """Composite widget for selecting a file
+
+    Subclass implementing a SelectionLine.
+
+    """
     def __init__(self,name=None,tooltip=None):
+        """Create a new FileSelectionLine instance
+
+        """
         super(FileSelectionLine,self).__init__(name,tooltip)
 
     def showDialog(self):
+        """Bring up file selection dialog
+
+        """
         dialog = QtGui.QFileDialog()
         dialog.setFileMode(QtGui.QFileDialog.AnyFile);
         new_selection = str(dialog.getSaveFileName(self,'Open file',))
@@ -299,13 +448,34 @@ class FileSelectionLine(SelectionLine):
             self._set_selected(os.path.abspath(new_selection))
 
 class DirSelectionLine(SelectionLine):
+    """Composite widget for selecting a file
+
+    Subclass implementing a SelectionLine.
+
+    """
     def __init__(self,name=None,tooltip=None):
+        """Create a new FileSelectionLine instance
+
+        """
         super(DirSelectionLine,self).__init__(name,tooltip)
 
     def showDialog(self):
+        """Bring up file selection dialog
+
+        """
         new_selection = QtGui.QFileDialog.getExistingDirectory(self,'Select directory',)
         if new_selection:
             self._set_selected(new_selection)
+
+#######################################################################
+# Functions
+#######################################################################
+
+# None defined
+
+#######################################################################
+# Main program
+#######################################################################
 
 if __name__ == "__main__":
     app = QtGui.QApplication(sys.argv)
