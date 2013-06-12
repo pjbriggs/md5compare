@@ -101,8 +101,8 @@ class Window(QtGui.QWidget):
         # Create worker thread
         self.thread = CompareWorker()
         self.thread.finished.connect(self.finishComparison)
-        self.connect(self.thread,QtCore.SIGNAL("update_progress(float)"),self.updateProgress)
-        self.connect(self.thread,QtCore.SIGNAL("update_status(QString)"),self.updateStatus)
+        self.connect(self.thread,QtCore.SIGNAL("progress_update(float)"),self.updateProgress)
+        self.connect(self.thread,QtCore.SIGNAL("status_update(QString)"),self.updateStatus)
 
     def resetUi(self):
         """Reset the state of the status and progress bars
@@ -285,9 +285,20 @@ class CompareWorker(QtCore.QThread):
     >>> # Do the comparison
     >>> thread.compare('dir1','dir2','report.txt')
 
-    
+    This classes defines the following custom signals:
+
+    status_update(QString): emitted when the status of the
+      comparison is updated; the status message is sent as
+      a QString object.
+    progress_update(float): emitted when the percentage
+      progress of the comparison is updated; the percentage
+      progress is sent as a float between 0 and 100.0.
 
     """
+
+    # Define custom signals
+    status_update = QtCore.pyqtSignal('QString')
+    progress_update = QtCore.pyqtSignal('float')
 
     def __init__(self,parent=None):
         """Create new CompareWorker instance
@@ -312,7 +323,7 @@ class CompareWorker(QtCore.QThread):
         self.output = output
         self.start()
 
-    def update_progress(self,msg):
+    def progress_handler(self,msg):
         """Callback function invoked by the running comparison
 
         This is passed to the 'Compare' object that runs the comparison
@@ -329,8 +340,10 @@ class CompareWorker(QtCore.QThread):
         if msg.startswith("Examining"):
             n = float(msg.split()[1].split('/')[0])
             m = float(msg.split()[1].split('/')[1])
-            self.emit(QtCore.SIGNAL("update_progress(float)"),float(n/m*100.0))
-        self.emit(QtCore.SIGNAL("update_status(QString)"),QtCore.QString(msg))
+            # Signal that progress has changed
+            self.progress_update.emit(float(n/m*100.0))
+        # Signal latest status message
+        self.status_update.emit(QtCore.QString(msg))
 
     def run(self):
         """Implement the 'run' method of the base class
@@ -342,9 +355,9 @@ class CompareWorker(QtCore.QThread):
         compare.Compare(self.from_dir,self.to_dir,
                         report_progress=True,
                         report_every=1,
-                        progress_callback=self.update_progress).report(self.output)
+                        progress_callback=self.progress_handler).report(self.output)
         # Finished, signal that we've reach 100% complete
-        self.emit(QtCore.SIGNAL("update_progress(float)"),float(100))
+        self.progress_update.emit(float(100))
 
 class SelectionLine(QtGui.QWidget):
     """Base class for creating file/directory selection widgets
