@@ -285,7 +285,7 @@ class CompareWorker(QtCore.QThread):
     >>> # Do the comparison
     >>> thread.compare('dir1','dir2','report.txt')
 
-    This classes defines the following custom signals:
+    This class defines the following custom signals:
 
     status_update(QString): emitted when the status of the
       comparison is updated; the status message is sent as
