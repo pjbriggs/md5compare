@@ -73,16 +73,19 @@ class Window(QtGui.QWidget):
         self.startButton = QtGui.QPushButton(self.tr("&Start"))
         self.stopButton = QtGui.QPushButton(self.tr("Sto&p"))
         self.quitButton = QtGui.QPushButton(self.tr("&Quit"))
+        self.aboutButton = QtGui.QPushButton(self.tr("&About"))
         # Put buttons into a box
         buttons = QtGui.QHBoxLayout()
         buttons.addWidget(self.startButton)
         buttons.addWidget(self.stopButton)
+        buttons.addWidget(self.aboutButton)
         buttons.addWidget(self.quitButton)
         buttons.addStretch(1)
         # Connect signals to slots for the buttons
         self.startButton.clicked.connect(self.startComparison)
         self.stopButton.clicked.connect(self.stopComparison)
         self.quitButton.clicked.connect(QtCore.QCoreApplication.instance().quit)
+        self.aboutButton.clicked.connect(self.about)
         # Build the layout
         layout = QtGui.QVBoxLayout()
         layout.addLayout(self.selectForm)
@@ -190,6 +193,15 @@ class Window(QtGui.QWidget):
                    QtGui.QMessageBox.No)
         if ret == QtGui.QMessageBox.Yes:
             webbrowser.open("file:%s%s" % (os.sep*2,output))
+
+    @QtCore.pyqtSlot()
+    def about(self):
+        """Present an 'about' window
+
+        """
+        QtGui.QMessageBox.information(self,
+                                      self.tr("About GoCompare"),
+                                      self.tr("GoCompare: Version %s\nCopyright (C) University of Manchester 2013 Peter Briggs" % __version__))
 
     @QtCore.pyqtSlot(float)
     def updateProgress(self,value):
