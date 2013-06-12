@@ -53,11 +53,11 @@ class Window(QtGui.QWidget):
         self.selectTo = DirSelectionLine(tooltip="Select the target ('to') directory to compare")
         self.selectOutput = FileSelectionLine(tooltip="Specify a file to write the final report to")
         # Connect signals to slots for the selection widgets
-        self.connect(self.selectFrom,QtCore.SIGNAL("updated_selection(QString)"),
+        self.connect(self.selectFrom,QtCore.SIGNAL("selectionChanged(QString)"),
                      self.resetUi)
-        self.connect(self.selectTo,QtCore.SIGNAL("updated_selection(QString)"),
+        self.connect(self.selectTo,QtCore.SIGNAL("selectionChanged(QString)"),
                      self.resetUi)
-        self.connect(self.selectOutput,QtCore.SIGNAL("updated_selection(QString)"),
+        self.connect(self.selectOutput,QtCore.SIGNAL("selectionChanged(QString)"),
                      self.resetUi)
         # Put selection lines into a form layout
         self.selectForm = QtGui.QFormLayout()
@@ -371,7 +371,16 @@ class SelectionLine(QtGui.QWidget):
     the showDialog method to bring up an appropriate selection
     dialog.
 
+    This class defines the following custom signals:
+
+    selectionChanged(Qstring): emitted when the text in the selection
+      line changes, either from the selection dialog or from manual
+      editing.
+
     """
+
+    # Define custom signals
+    selectionChanged = QtCore.pyqtSignal('QString')
 
     def __init__(self,name=None,tooltip=None):
         """Create a SelectionLine instance
@@ -399,8 +408,8 @@ class SelectionLine(QtGui.QWidget):
         hbox.addWidget(self.selectedLine)
         hbox.addWidget(self.showDialogButton)
         self.setLayout(hbox)
-        # Connect the 
-        self.selectedLine.textChanged.connect(self.updated)
+        # Make change to text trigger the selectionChanged signal
+        self.selectedLine.textChanged.connect(self.selectionChanged.emit)
 
     @property
     def selected(self):
@@ -414,12 +423,6 @@ class SelectionLine(QtGui.QWidget):
 
         """
         self.selectedLine.setText(str(value))
-
-    def updated(self,text):
-        """Emit a signal indicating updates to the selection
-
-        """
-        self.emit(QtCore.SIGNAL("updated_selection(QString)"),text)
 
     def setEnabled(self,enabled):
         """Enable/disable widget
