@@ -53,12 +53,9 @@ class Window(QtGui.QWidget):
         self.selectTo = DirSelectionLine(tooltip="Select the target ('to') directory to compare")
         self.selectOutput = FileSelectionLine(tooltip="Specify a file to write the final report to")
         # Connect signals to slots for the selection widgets
-        self.connect(self.selectFrom,QtCore.SIGNAL("selectionChanged(QString)"),
-                     self.resetUi)
-        self.connect(self.selectTo,QtCore.SIGNAL("selectionChanged(QString)"),
-                     self.resetUi)
-        self.connect(self.selectOutput,QtCore.SIGNAL("selectionChanged(QString)"),
-                     self.resetUi)
+        self.selectFrom.selectionChanged.connect(self.resetUi)
+        self.selectTo.selectionChanged.connect(self.resetUi)
+        self.selectOutput.selectionChanged.connect(self.resetUi)
         # Put selection lines into a form layout
         self.selectForm = QtGui.QFormLayout()
         self.selectForm.addRow("From",self.selectFrom)
@@ -70,7 +67,7 @@ class Window(QtGui.QWidget):
         self.statusMessage = ''
         # Timing comparison operation
         self.timer = QtCore.QTimer()
-        self.connect(self.timer,QtCore.SIGNAL("timeout()"),self.updateStatus)
+        self.timer.timeout.connect(self.updateStatus)
         self.startTime = None
         # Buttons
         self.startButton = QtGui.QPushButton(self.tr("&Start"))
@@ -101,8 +98,8 @@ class Window(QtGui.QWidget):
         # Create worker thread
         self.thread = CompareWorker()
         self.thread.finished.connect(self.finishComparison)
-        self.connect(self.thread,QtCore.SIGNAL("progress_update(float)"),self.updateProgress)
-        self.connect(self.thread,QtCore.SIGNAL("status_update(QString)"),self.updateStatus)
+        self.thread.progress_update.connect(self.updateProgress)
+        self.thread.status_update.connect(self.updateStatus)
 
     def resetUi(self):
         """Reset the state of the status and progress bars
