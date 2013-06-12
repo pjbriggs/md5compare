@@ -155,6 +155,8 @@ class Window(QtGui.QWidget):
         if self.thread.isRunning():
             logging.debug("Terminating running application")
             self.thread.terminate() # Not supposed to do this
+        # Update status
+        self.updateStatus("Comparison stopped")
         self.updateUi()
 
     def finishComparison(self):
