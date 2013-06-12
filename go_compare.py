@@ -101,6 +101,7 @@ class Window(QtGui.QWidget):
         self.thread.progress_update.connect(self.updateProgress)
         self.thread.status_update.connect(self.updateStatus)
 
+    @QtCore.pyqtSlot()
     def resetUi(self):
         """Reset the state of the status and progress bars
 
@@ -112,6 +113,7 @@ class Window(QtGui.QWidget):
         # Validate file/directory selections
         self.validateInputs()
 
+    @QtCore.pyqtSlot()
     def startComparison(self):
         """Start running the directory comparison
 
@@ -143,6 +145,7 @@ class Window(QtGui.QWidget):
         # Do the comparison
         self.thread.compare(from_dir,to_dir,output)
 
+    @QtCore.pyqtSlot()
     def stopComparison(self):
         """Stop a running comparison process
 
@@ -156,6 +159,7 @@ class Window(QtGui.QWidget):
         self.updateStatus("Comparison stopped")
         self.updateUi()
 
+    @QtCore.pyqtSlot()
     def finishComparison(self):
         """Handle the result of a completed comparison
 
@@ -187,6 +191,7 @@ class Window(QtGui.QWidget):
         if ret == QtGui.QMessageBox.Yes:
             webbrowser.open("file:%s%s" % (os.sep*2,output))
 
+    @QtCore.pyqtSlot(float)
     def updateProgress(self,value):
         """Update the progress bar
 
@@ -196,16 +201,8 @@ class Window(QtGui.QWidget):
         """
         self.progressBar.setValue(value)
 
-    def validateInputs(self,text=None):
-        # Define validateInputs slot
-        # Check that inputs are valid and update the UI accordingly
-        if os.path.isdir(self.selectFrom.selected) and \
-                os.path.isdir(self.selectTo.selected) and \
-                self.selectOutput.selected:
-            self.startButton.setEnabled(True)
-        else:
-            self.startButton.setEnabled(False)
-
+    @QtCore.pyqtSlot()
+    @QtCore.pyqtSlot(QtCore.QString)
     def updateStatus(self,msg=None):
         """Update the status bar
 
@@ -232,6 +229,15 @@ class Window(QtGui.QWidget):
             # Prepend elapsed time
             status_msg = "[Elapsed %s] %s" % (self.getElapsedTime(),status_msg)
         self.statusBar.setText(status_msg)
+
+    def validateInputs(self,text=None):
+        # Check that inputs are valid and update the UI accordingly
+        if os.path.isdir(self.selectFrom.selected) and \
+                os.path.isdir(self.selectTo.selected) and \
+                self.selectOutput.selected:
+            self.startButton.setEnabled(True)
+        else:
+            self.startButton.setEnabled(False)
 
     def getElapsedTime(self):
         """Return the elapsed time since the comparison started
@@ -260,7 +266,6 @@ class Window(QtGui.QWidget):
         """Update the state of the UI when a comparison isn't running
 
         """
-        # Define the updateUi slot
         # Reset button states to default
         self.startButton.setEnabled(False)
         self.stopButton.setEnabled(False)
