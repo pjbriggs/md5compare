@@ -94,7 +94,7 @@ class Window(QtGui.QWidget):
         layout.addLayout(buttons)
         layout.addStretch(1)
         self.setLayout(layout)
-        self.setWindowTitle(self.tr("Go Compare: Md5 sum checker"))
+        self.setWindowTitle(self.tr("Go Compare v%s: Md5 sum checker" % __version__))
         self.setMinimumWidth(600)
         # Ensure buttons are in the correct initial state
         self.updateUi()
