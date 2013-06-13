@@ -1,6 +1,6 @@
 #!/bin/env python
 #
-#     go_compare.py: PyQt GUI for  UI for the compare utility
+#     go_compare.py: PyQt GUI for the compare utility
 #     Copyright (C) University of Manchester 2013 Peter Briggs
 #
 ########################################################################
