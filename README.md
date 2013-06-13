@@ -10,6 +10,9 @@ There are two programs:
  * `compare.py` is a command-line version of the comparison utility
  * `go_compare.py` is a PyQT GUI version
 
+The programs have been developed for Linux and Windows platforms (see "Dependencies"
+below).
+
 compare.py
 ----------
 
@@ -51,5 +54,16 @@ Usage:
 `go_compare.py` is built on the `PyQt4` libraries so these must be available
 on your system.
 
+Dependencies
+------------
 
+`compare.py` was developed against Python 2.7; `go_compare.py` additionally
+requires PyQt4.
 
+The utilities have been used under Windows XP and Windows 7 using the
+following Python and PyQt packages:
+
+ * ActivePython 2.7.2.5: <http://downloads.activestate.com/ActivePython/releases/2.7.2.5/>
+ * PyQt 4.10.1: <http://www.riverbankcomputing.co.uk/software/pyqt/download>
+
+Other versions may also work but have not been tried.
