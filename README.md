@@ -67,3 +67,8 @@ following Python and PyQt packages:
  * PyQt 4.10.1: <http://www.riverbankcomputing.co.uk/software/pyqt/download>
 
 Other versions may also work but have not been tried.
+
+ChangeLog
+---------
+
+0.0.1: initial version

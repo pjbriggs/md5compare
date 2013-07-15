@@ -18,7 +18,8 @@ Compare the contents of a pair of directories using MD5 sums
 # Module metadata
 #######################################################################
 
-__version__ = "0.0.1"
+import version
+__version__ = version.__version__
 
 #######################################################################
 # Import modules that this module depends on
