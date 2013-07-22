@@ -102,6 +102,8 @@ window.
 ChangeLog
 ---------
 
+0.0.3: report MD5 sums for both copies of a file when there is a mismatch
+
 0.0.2: added setup.py for installation on Linux and Windows platforms.
 
 0.0.1: initial version

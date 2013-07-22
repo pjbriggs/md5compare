@@ -105,16 +105,23 @@ class Compare:
         n = 0
         failed_md5 = []
         unreadable = []
+        to_chksums = {}
+        from_chksums = {}
         for f in self._common:
             n += 1
             if n%n_mod == 0:
                 self._report_progress("Examining %d/%d (%s)" % (n,nfiles,f))
             try:
-                if not self._check_md5(f):
+                from_chksum,to_chksum = self._fetch_md5s(f)
+                if not from_chksum == to_chksum:
                     failed_md5.append(f)
+                    from_chksums[f] = from_chksum
+                    to_chksums[f]   = to_chksum
             except IOError:
                 unreadable.append(f)
         self._failed_md5 = failed_md5
+        self._to_chksums = to_chksums
+        self._from_chksums = from_chksums
         self._unreadable = unreadable
 
     def report(self,output_file=None,fp=sys.stdout):
@@ -168,6 +175,10 @@ class Compare:
             elif f in self._unreadable:
                 status = "UNREADABLE"
             fp.write("\t%s\t%s\n" % (status,f))
+            if status == "FAILED":
+                # Also report the different checksums
+                fp.write("\t\t\tMD5s: from %s\tTo %s\n" % (self._from_chksums[f],
+                                                           self._to_chksums[f]))
         # Send a progress update indicating final result
         summary = ["Finished: %d/%d OK" % (n_passed,len(self._common))]
         if n_failed > 0:
@@ -203,6 +214,18 @@ class Compare:
         files.sort()
         return files
 
+    def _fetch_md5s(self,filen):
+        """Compute and return MD5 sums for each copy of a file
+
+        Calculates the MD5 sums of each copy of the specified file
+        in the source and target directories and returns a tuple
+        (source_md5,target_md5).
+
+        """
+        chksum1 = Md5sum.md5sum(os.path.join(self._from_dir,filen))
+        chksum2 = Md5sum.md5sum(os.path.join(self._to_dir,filen))
+        return (chksum1,chksum2)
+
     def _check_md5(self,filen):
         """Compare MD5 sums of two copies of a file
 
@@ -212,8 +235,7 @@ class Compare:
         Returns True if the MD5 sums match, False if they differ.
 
         """
-        chksum1 = Md5sum.md5sum(os.path.join(self._from_dir,filen))
-        chksum2 = Md5sum.md5sum(os.path.join(self._to_dir,filen))
+        chksum1,chksum2 = self._fetch_md5s(filen)
         return chksum1 == chksum2
 
 #######################################################################
