@@ -62,6 +62,10 @@ class Window(QtGui.QWidget):
         self.selectForm.addRow("From",self.selectFrom)
         self.selectForm.addRow("To",self.selectTo)
         self.selectForm.addRow("Output",self.selectOutput)
+        # Checkbutton for ordering in "natural sort order"
+        self.useNaturalSort = QtGui.QCheckBox("Use Windows Explorer natural sort order",self)
+        self.useNaturalSort.setToolTip("Sorts files with numerical indices into "
+                                       "human-readable order")
         # Progress and status bars
         self.progressBar = QtGui.QProgressBar(self)
         self.statusBar = QtGui.QLabel()
@@ -90,6 +94,7 @@ class Window(QtGui.QWidget):
         # Build the layout
         layout = QtGui.QVBoxLayout()
         layout.addLayout(self.selectForm)
+        layout.addWidget(self.useNaturalSort)
         layout.addWidget(self.progressBar)
         layout.addWidget(self.statusBar)
         layout.addLayout(buttons)
@@ -146,8 +151,13 @@ class Window(QtGui.QWidget):
                 return
             else:
                 os.remove(output)
+        # Set the sort key function
+        if self.useNaturalSort.isChecked():
+            sort_key = compare.SortKeys.natural
+        else:
+            sort_key = compare.SortKeys.default
         # Do the comparison
-        self.thread.compare(from_dir,to_dir,output)
+        self.thread.compare(from_dir,to_dir,output,sort_key=sort_key)
 
     @QtCore.pyqtSlot()
     def stopComparison(self):
@@ -325,17 +335,19 @@ class CompareWorker(QtCore.QThread):
         self.exiting = True
         self.wait()
 
-    def compare(self,from_dir,to_dir,output):
+    def compare(self,from_dir,to_dir,output,sort_key=None):
         """Run a comparison of two directories
 
         Arguments:
           from_dir: 'source' directory
           to_dir:   'target' directory being compared to the source
           output:   name of a file to write the comparison report to
+          sort_key: optional, function to use for sorting
         """
         self.from_dir = from_dir
         self.to_dir = to_dir
         self.output = output
+        self.sort_key = sort_key
         self.start()
 
     def progress_handler(self,msg):
@@ -370,7 +382,8 @@ class CompareWorker(QtCore.QThread):
         compare.Compare(self.from_dir,self.to_dir,
                         report_progress=True,
                         report_every=1,
-                        progress_callback=self.progress_handler).report(self.output)
+                        progress_callback=self.progress_handler,
+                        sort_key=self.sort_key).report(self.output)
         # Finished, signal that we've reach 100% complete
         self.progress_update.emit(float(100))
 
