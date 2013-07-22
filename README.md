@@ -105,6 +105,9 @@ window.
 ChangeLog
 ---------
 
+0.0.4: added options for sorting files into 'natural sort order' (the
+       same as used by Windows Explorer).
+
 0.0.3: report MD5 sums for both copies of a file when there is a mismatch
 
 0.0.2: added setup.py for installation on Linux and Windows platforms.
