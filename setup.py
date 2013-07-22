@@ -14,8 +14,30 @@ This will install md5compare and its dependencies and provide the 'compare.py' a
 
 from distutils.core import setup
 import os
+import sys
 import version
 version = version.__version__
+
+# Scripts (platform-specific)
+scripts = ['compare.py','go_compare.py']
+if sys.platform[:3] == 'win':
+    # Windows-specific extras
+    # Borrowed from
+    # https://bitbucket.org/fenics-project/ffc/src/5d7e04c5470b4a2da37ff33b3c43c38cd2ee1d62/setup.py?at=master
+    # As the Windows command prompt can't execute Python scripts without a
+    # .py extension, create batch files that run the scripts
+    batch_files = []
+    for script in scripts:
+        batch_file = os.path.splitext(script)[0] + ".bat"
+        f = open(batch_file, "w")
+        f.write('python "%%~dp0\%s" %%*\n' % os.path.split(script)[1])
+        f.close()
+        batch_files.append(batch_file)
+    scripts.extend(batch_files)
+    # Also add the Windows postinstall.py script so we can do
+    # python setup.py bdist_wininst --install-script postinstall.py
+    # to make a Windows installer
+    scripts.append("postinstall.py")
 
 setup(
     name = "md5compare",
@@ -28,5 +50,5 @@ setup(
     url = 'https://github.com/pjbriggs/md5compare',
     py_modules = ['compare','go_compare','version','Md5sum'],
     requires = ['PyQt (>=4.0)',],
-    scripts = ['compare.py','go_compare.py'],
+    scripts = scripts,
     )

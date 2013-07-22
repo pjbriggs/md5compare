@@ -68,7 +68,40 @@ following Python and PyQt packages:
 
 Other versions may also work but have not been tried.
 
+Making installers using setup.py
+--------------------------------
+
+### Linux RPMs ###
+
+To make a platform-independent RPM installer on Linux do:
+
+    python setup.py bdist_rpm
+
+which will make the RPM in the `dist` subdirectory. It can then be installed
+on the system using e.g. `yum install dist/md5compare-0.0.1-1.noarch.rpm`.
+
+### Windows ###
+
+To make a Windows installer do:
+
+    python setup.py bdist_wininst --install-script postinstall.py
+
+(Nb needs to be done on a Windows system).
+
+This will create the installer in the `dist` subdirectory which will install
+the md5compare programs into the Python installation and try to create a
+desktop shortcut to the graphical interface.
+
+__Nb  the installer should be run as administrator otherwise the shortcut
+will not be created.__
+
+The package can be removed at a later date via the `Uninstall programs`
+window.
+
+
 ChangeLog
 ---------
+
+0.0.2: added setup.py for installation on Linux and Windows platforms.
 
 0.0.1: initial version
