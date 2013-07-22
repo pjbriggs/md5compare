@@ -33,9 +33,12 @@ Compare contents of a pair of directories using MD5 sums
 
 Options:
 
-    --version   show program's version number and exit
-    -h, --help  show this help message and exit
-    --progress  report progress
+    --version           show program's version number and exit
+    -h, --help          show this help message and exit
+    --progress          report progress
+    --use-natural-sort  use 'natural sort order' for ordering files (same as
+                        Windows Explorer)
+
 
 go_compare.py
 -------------
