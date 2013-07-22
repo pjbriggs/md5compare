@@ -66,6 +66,9 @@ class Window(QtGui.QWidget):
         self.useNaturalSort = QtGui.QCheckBox("Use Windows Explorer natural sort order",self)
         self.useNaturalSort.setToolTip("Sorts files with numerical indices into "
                                        "human-readable order")
+        if sys.platform[:3] == 'win':
+            # Set this option by default on Windows
+            self.useNaturalSort.setChecked(True)
         # Progress and status bars
         self.progressBar = QtGui.QProgressBar(self)
         self.statusBar = QtGui.QLabel()
