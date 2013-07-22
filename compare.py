@@ -27,14 +27,65 @@ __version__ = version.__version__
 
 import sys
 import os
+import re
 import optparse
 import logging
 import time
+import locale
 import Md5sum
 
 #######################################################################
 # Classes
 #######################################################################
+
+class SortKeys:
+    """Class providing functions to use as sort keys
+
+    SortKeys offers class methods (i.e. can be used without
+    instantiating a SortKeys object) that can be supplied to
+    the sort function via the 'key' argument e.g.
+
+    >>> my_list.sort(key=SortKeys.locale)
+
+    """
+    # Regular expression for extracting groups of digits
+    # from a string
+    natural_sort_digits = re.compile(r'(\d+)')
+
+    @classmethod
+    def default(self,value):
+        """Default Python ordering
+
+        """
+        return value
+
+    @classmethod
+    def locale(self,value):
+        """Ordering using the locale
+
+        """
+        return locale.strxfrm(value)
+
+    @classmethod
+    def natural(self,value):
+        """Natural sort order
+
+        'Natural sort order' deals with values which contain one
+        or more numerical components. It is essentially the way that
+        a human would put names in order if they contained numbers,
+        so that e.g. 'name-1.txt' comes before 'name-10.txt'.
+
+        (This is also the ordering used by Windows Explorer.)
+
+        The code for dealing with natural sort order is taken from
+        Pavel Repin's Stackoverflow answer posted at
+        http://stackoverflow.com/a/5997173/579925
+
+        """
+        return tuple(int(token) if match else token
+                     for token, match in
+                     ((fragment, self.natural_sort_digits.search(fragment))
+                      for fragment in self.natural_sort_digits.split(value)))
 
 class Compare:
     """Class to compare contents of two directories
@@ -43,7 +94,8 @@ class Compare:
 
     def __init__(self,from_dir,to_dir,
                  report_progress=False,report_every=0,
-                 progress_callback=None):
+                 progress_callback=None,
+                 sort_key=None):
         """Create a new Compare object
 
         Arguments:
@@ -57,11 +109,15 @@ class Compare:
             value will be set automatically)
           progress: (optional) callback function that will be
             invoked to report progress
+          sort_key: (optional) function to use as a key for sorting
+            file names. Default is to use the native sort order
 
         """
         # Store info about source ("from") and target ("to") dirs
         self._from_dir = from_dir
         self._to_dir = to_dir
+        # Sort key function to use
+        self._sort_key = sort_key
         # Store progress options and callback function
         self._report_progress_flag = report_progress
         self._report_every = report_every
@@ -88,9 +144,10 @@ class Compare:
         self._only_in_from = list(self._from_set.difference(self._to_set))
         self._only_in_to   = list(self._to_set.difference(self._from_set))
         # Sort the lists
-        self._common.sort()
-        self._only_in_from.sort()
-        self._only_in_to.sort()        
+        sort_key = self._sort_key
+        self._common.sort(key=sort_key)
+        self._only_in_from.sort(key=sort_key)
+        self._only_in_to.sort(key=sort_key)
 
     def go_compare(self):
         """Do the comparison
