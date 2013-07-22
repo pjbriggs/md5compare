@@ -315,6 +315,8 @@ if __name__ == "__main__":
     # Define options
     p.add_option('--progress',action="store_true",dest="progress",default=False,
                  help="report progress")
+    p.add_option('--use-natural-sort',action="store_true",dest="use_natural_sort",default=False,
+                 help="use 'natural sort order' for ordering files (same as Windows Explorer)")
 
     # Process command line
     options,arguments = p.parse_args()
@@ -331,8 +333,16 @@ if __name__ == "__main__":
     else:
         output_file = None
 
+    # Setup sorting function
+    if options.use_natural_sort:
+        sort_key = SortKeys.natural
+    else:
+        sort_key = SortKeys.default
+
     # Set up logging output
     logging.basicConfig(format='%(message)s')
     
     # Invoke the comparison
-    comparison = Compare(from_dir,to_dir,report_progress=options.progress).report(output_file)
+    comparison = Compare(from_dir,to_dir,
+                         report_progress=options.progress,
+                         sort_key=sort_key).report(output_file)
