@@ -295,6 +295,7 @@ class Window(QtGui.QWidget):
         self.selectFrom.setEnabled(True)
         self.selectTo.setEnabled(True)
         self.selectOutput.setEnabled(True)
+        self.selectFrom.setFocus()
         # Check if the inputs are still valid
         self.validateInputs()
 
@@ -462,6 +463,15 @@ class SelectionLine(QtGui.QWidget):
         """
         self.selectedLine.setEnabled(enabled)
         self.showDialogButton.setEnabled(enabled)
+
+    def setFocus(self):
+        """Give the widget focus
+
+        Sets focus on the SelectionLine widget (specifically the
+        showDialog button).
+
+        """
+        self.showDialogButton.setFocus()
 
     def showDialog(self):
         """Bring up appropriate dialog and process the result
